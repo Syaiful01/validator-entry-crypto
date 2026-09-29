@@ -111,6 +111,11 @@ def _fetch_oi_history(symbol: str) -> dict:
     )
     if not isinstance(rows, list) or len(rows) < 2:
         return {"oi_change_pct": None}
+
+    # Endpoint biasanya mengembalikan data secara kronologis, tetapi urutkan
+    # eksplisit berdasarkan timestamp agar nilai pertama selalu yang tertua.
+    # Dengan begitu perubahan positif selalu berarti OI bertambah.
+    rows = sorted(rows, key=lambda row: row.get("timestamp", 0))
     first, last = _f(rows[0].get("sumOpenInterest")), _f(rows[-1].get("sumOpenInterest"))
     if not first or last is None:
         return {"oi_change_pct": None}

@@ -298,6 +298,11 @@ def handle_analysis(uploaded, symbol_input, bias, timeframe, notes, weights) -> 
     }
 
 
+def use_detected_symbol(symbol: str) -> None:
+    """Isi field symbol dengan hasil pembacaan Gemini pada rerun berikutnya."""
+    st.session_state["symbol_input"] = symbol
+
+
 # ---------------------------------------------------------------------------
 # SIDEBAR
 # ---------------------------------------------------------------------------
@@ -306,7 +311,12 @@ with st.sidebar:
     st.caption("Chart Validation Assistant")
 
     uploaded = st.file_uploader("Upload screenshot chart", type=["png", "jpg", "jpeg"])
-    symbol_input = st.text_input("Symbol *", placeholder="contoh: BTCUSDT", help="Wajib diisi. Futures USDT-M Binance.")
+    symbol_input = st.text_input(
+        "Symbol *",
+        placeholder="contoh: BTCUSDT",
+        help="Wajib diisi. Futures USDT-M Binance.",
+        key="symbol_input",
+    )
     bias = st.selectbox("Arah Bias", ["Long", "Short", "Neutral"])
     tf_choice = st.selectbox("Timeframe (opsional)", TF_OPTIONS)
     notes = st.text_area("Catatan pribadi (opsional)", height=100)
@@ -337,6 +347,15 @@ with tab_new:
     result = st.session_state.get("last_result")
     if result:
         render_result(result)
+        detected_symbol = normalize_symbol(result["teknikal"].get("detected_symbol", ""))
+        if detected_symbol and detected_symbol != result["symbol"]:
+            st.info(f"Gemini mendeteksi symbol **{detected_symbol}** pada chart.")
+            st.button(
+                f"Gunakan symbol terdeteksi: {detected_symbol}",
+                key=f"use_detected_symbol_{detected_symbol}",
+                on_click=use_detected_symbol,
+                args=(detected_symbol,),
+            )
     elif uploaded is not None:
         st.subheader("Preview chart")
         st.image(uploaded.getvalue(), caption=uploaded.name)

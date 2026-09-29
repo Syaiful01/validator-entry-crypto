@@ -18,7 +18,6 @@ Alurnya: screenshot chart → analisis Gemini Vision → digabung data Binance F
 Butuh Python 3.10+.
 
 ```bash
-cd chart-validation-assistant
 python -m venv .venv
 # Windows: .venv\Scripts\activate    |  macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
@@ -62,6 +61,7 @@ Semua ambang batas ada di `modules/scoring.py`.
 ## Struktur
 ```
 app.py                     UI Streamlit
+modules/__init__.py         Penanda package modul
 modules/vision_analyzer.py Gemini Vision + prompt
 modules/binance_data.py    Binance Futures public API
 modules/scoring.py         logika skor
