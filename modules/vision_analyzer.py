@@ -17,14 +17,15 @@ import re
 import time
 from typing import Any, Optional, Union
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 from PIL import Image
 
 load_dotenv()
 
 # Model bisa diganti lewat .env (GEMINI_MODEL) tanpa mengubah kode.
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-2.5-flash-lite"
 MAX_IMAGE_SIDE = 1600  # perkecil gambar besar agar upload ke API lebih cepat
 MAX_RETRIES = 2
 REQUEST_TIMEOUT = 60  # detik
@@ -116,7 +117,9 @@ this schema:
 # HELPER
 # ---------------------------------------------------------------------------
 def get_model_name() -> str:
-    return os.getenv("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    """Nama model Gemini tanpa prefix ``models/`` untuk Google Gen AI SDK."""
+    name = os.getenv("GEMINI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    return name.removeprefix("models/")
 
 
 def _load_image(image: Union[str, bytes, Image.Image]) -> Image.Image:
@@ -137,6 +140,13 @@ def _load_image(image: Union[str, bytes, Image.Image]) -> Image.Image:
     if max(img.size) > MAX_IMAGE_SIDE:
         img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE), Image.LANCZOS)
     return img
+
+
+def _image_bytes(img: Image.Image) -> tuple[bytes, str]:
+    """Serialisasikan gambar yang sudah dinormalisasi untuk ``Part.from_bytes``."""
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG", quality=92, optimize=True)
+    return buffer.getvalue(), "image/jpeg"
 
 
 def _to_float(value: Any) -> Optional[float]:
@@ -248,26 +258,29 @@ def analyze_chart(
         )
 
     img = _load_image(image)
+    image_bytes, mime_type = _image_bytes(img)
     prompt = PROMPT_TEMPLATE.format(
         symbol=symbol or "unknown",
         bias=bias or "Neutral",
         timeframe=timeframe or "not provided",
     )
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name or get_model_name(),
-        generation_config={
-            "temperature": 0.2,  # rendah = hasil lebih konsisten
-            "response_mime_type": "application/json",
-        },
-    )
+    selected_model = (model_name or get_model_name()).removeprefix("models/")
+    client = genai.Client(api_key=api_key)
 
     last_error: Optional[Exception] = None
     for attempt in range(1, MAX_RETRIES + 2):
         try:
-            response = model.generate_content(
-                [prompt, img], request_options={"timeout": REQUEST_TIMEOUT}
+            response = client.models.generate_content(
+                model=selected_model,
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                    prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.2,  # rendah = hasil lebih konsisten
+                ),
             )
             try:
                 text = response.text
@@ -291,8 +304,8 @@ def analyze_chart(
                 ) from exc
             if "not found" in msg or "404" in msg:
                 raise VisionAnalysisError(
-                    f"Model '{model_name or get_model_name()}' tidak ditemukan. "
-                    "Ubah GEMINI_MODEL di file .env (contoh: gemini-2.5-flash)."
+                    f"Model '{selected_model}' tidak ditemukan. "
+                    "Ubah GEMINI_MODEL di file .env (contoh: gemini-2.5-flash-lite)."
                 ) from exc
             if "quota" in msg or "429" in msg or "resource" in msg:
                 raise VisionAnalysisError(
