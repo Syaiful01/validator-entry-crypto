@@ -17,7 +17,7 @@ from modules.binance_data import BinanceError, get_market_data, normalize_symbol
 from modules.scoring import DEFAULT_WEIGHTS, calculate_score
 from modules.vision_analyzer import VisionAnalysisError, analyze_chart, get_model_name
 
-load_dotenv()
+load_dotenv(override=True)
 
 st.set_page_config(page_title="Chart Validation Assistant", page_icon="📈", layout="wide")
 db.init_db()

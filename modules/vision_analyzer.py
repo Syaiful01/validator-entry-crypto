@@ -22,10 +22,10 @@ from google.genai import types
 from dotenv import load_dotenv
 from PIL import Image
 
-load_dotenv()
+load_dotenv(override=True)
 
 # Model bisa diganti lewat .env (GEMINI_MODEL) tanpa mengubah kode.
-DEFAULT_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 MAX_IMAGE_SIDE = 1600  # perkecil gambar besar agar upload ke API lebih cepat
 MAX_RETRIES = 2
 REQUEST_TIMEOUT = 60  # detik
@@ -305,7 +305,7 @@ def analyze_chart(
             if "not found" in msg or "404" in msg:
                 raise VisionAnalysisError(
                     f"Model '{selected_model}' tidak ditemukan. "
-                    "Ubah GEMINI_MODEL di file .env (contoh: gemini-2.5-flash-lite)."
+                    "Ubah GEMINI_MODEL di file .env (contoh: gemini-3.5-flash-lite)."
                 ) from exc
             if "quota" in msg or "429" in msg or "resource" in msg:
                 raise VisionAnalysisError(
